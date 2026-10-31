@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar as RNStatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +15,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { NetworkType, TimeRange, AppUsageItem as AppUsageItemType, UsageSummary } from './src/types/dataUsage';
 import { getPresetTimeRanges } from './src/utils/formatters';
 import { dataUsageService } from './src/services/dataUsageService';
+import { storageService } from './src/services/storageService';
 import { NetworkStats } from './src/native/NetworkStats';
 import { theme } from './src/theme';
 
@@ -100,6 +102,25 @@ function MainScreen() {
     }, 1500);
   };
 
+  const handleReset = () => {
+    Alert.alert(
+      'Reset Data Usage',
+      'Are you sure you want to reset all recorded internet usage data? This will clear historical statistics.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoading(true);
+            await storageService.resetData();
+            await loadUsageData(true);
+          },
+        },
+      ]
+    );
+  };
+
   const handleAppPress = (app: AppUsageItemType) => {
     setSelectedApp(app);
     setIsDetailModalVisible(true);
@@ -126,6 +147,7 @@ function MainScreen() {
         isLoading={isLoading}
         onRefresh={() => loadUsageData(true)}
         onRequestPermission={handleRequestPermission}
+        onReset={handleReset}
       />
 
       {/* Prominent Navigation Switcher (Wi-Fi | Mobile | Combined) */}

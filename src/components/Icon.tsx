@@ -20,6 +20,9 @@ export type IconName =
   | 'key-outline'
   | 'filter-outline'
   | 'globe-outline'
+  | 'trash'
+  | 'trash-outline'
+  | 'settings'
   | 'text';
 
 interface IconProps {
@@ -174,6 +177,25 @@ export const Icon: React.FC<IconProps> = ({ name, size = 16, color = '#FFFFFF' }
         <View style={[styles.center, { width: size, height: size }]}>
           <Text style={{ fontSize: size * 0.85, color, fontWeight: '700', lineHeight: size }}>
             A-Z
+          </Text>
+        </View>
+      );
+
+    case 'trash':
+    case 'trash-outline':
+      return (
+        <View style={[styles.center, { width: size, height: size }]}>
+          <Text style={{ fontSize: size * 0.85, color, lineHeight: size * 1.1 }}>
+            🗑
+          </Text>
+        </View>
+      );
+
+    case 'settings':
+      return (
+        <View style={[styles.center, { width: size, height: size }]}>
+          <Text style={{ fontSize: size * 0.85, color, lineHeight: size * 1.1 }}>
+            ⚙
           </Text>
         </View>
       );

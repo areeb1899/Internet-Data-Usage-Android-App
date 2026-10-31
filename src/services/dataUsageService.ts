@@ -65,10 +65,13 @@ class DataUsageService {
       totalMobileRx += item.mobileRxBytes;
       totalMobileTx += item.mobileTxBytes;
 
+      const appType = item.appType || (item.packageName === 'app.removed.historical' ? 'removed' : (item.packageName.startsWith('android') ? 'system' : 'installed'));
+
       return {
         id: item.packageName,
         packageName: item.packageName,
         appName: item.appName || item.packageName,
+        appType,
         wifiRxBytes: item.wifiRxBytes,
         wifiTxBytes: item.wifiTxBytes,
         wifiTotalBytes: wifiTotal,
@@ -76,9 +79,9 @@ class DataUsageService {
         mobileTxBytes: item.mobileTxBytes,
         mobileTotalBytes: mobileTotal,
         totalBytes: total,
-        iconColor: getAppColor(item.appName || item.packageName),
-        category: 'other',
-        isSystemApp: item.packageName.startsWith('com.android') || item.packageName.startsWith('android'),
+        iconColor: appType === 'removed' ? '#EF4444' : (appType === 'system' ? '#64748B' : getAppColor(item.appName || item.packageName)),
+        category: appType === 'system' ? 'system' : 'other',
+        isSystemApp: appType === 'system',
       };
     });
 
@@ -111,4 +114,3 @@ class DataUsageService {
 }
 
 export const dataUsageService = new DataUsageService();
-

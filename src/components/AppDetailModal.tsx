@@ -36,14 +36,24 @@ export const AppDetailModal: React.FC<AppDetailModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.appHeaderInfo}>
               <View style={[styles.avatar, { backgroundColor: app.iconColor }]}>
-                <Text style={styles.avatarText}>{initial}</Text>
+                {app.appType === 'system' ? (
+                  <Icon name="settings" size={22} color="#FFFFFF" />
+                ) : app.appType === 'removed' ? (
+                  <Icon name="trash" size={22} color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.avatarText}>{initial}</Text>
+                )}
               </View>
               <View style={styles.headerTexts}>
                 <Text style={styles.modalTitle} numberOfLines={1}>
                   {app.appName}
                 </Text>
                 <Text style={styles.modalSubtitle} numberOfLines={1}>
-                  {app.packageName}
+                  {app.appType === 'system'
+                    ? 'Android System & Background Services'
+                    : app.appType === 'removed'
+                    ? 'Uninstalled App (Historical record)'
+                    : 'Installed Application'}
                 </Text>
               </View>
             </View>

@@ -1,29 +1,40 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppUsageItem, DailySnapshot, UsageSummary } from '../types/dataUsage';
+import { AppUsageItem, DailySnapshot, UsageSummary, AppItemType } from '../types/dataUsage';
 import { getAppColor, toDateKey } from '../utils/formatters';
 
 const STORAGE_KEY_DAILY_RECORDS = '@net_usage_daily_v1';
 const STORAGE_KEY_INITIALIZED = '@net_usage_initialized_v1';
 
+interface CatalogAppEntry {
+  name: string;
+  package: string;
+  category: AppUsageItem['category'];
+  appType: AppItemType;
+  wifiWeight: number;
+  mobileWeight: number;
+}
+
 // Seed apps catalog with realistic metadata & usage weights
-const CATALOG_APPS = [
-  { name: 'YouTube', package: 'com.google.android.youtube', category: 'media', wifiWeight: 45, mobileWeight: 20 },
-  { name: 'Instagram', package: 'com.instagram.android', category: 'social', wifiWeight: 25, mobileWeight: 25 },
-  { name: 'Google Chrome', package: 'com.android.chrome', category: 'browser', wifiWeight: 15, mobileWeight: 12 },
-  { name: 'WhatsApp', package: 'com.whatsapp', category: 'social', wifiWeight: 10, mobileWeight: 14 },
-  { name: 'Netflix', package: 'com.netflix.mediaclient', category: 'media', wifiWeight: 35, mobileWeight: 8 },
-  { name: 'Spotify', package: 'com.spotify.music', category: 'media', wifiWeight: 12, mobileWeight: 9 },
-  { name: 'TikTok', package: 'com.zhiliaoapp.musically', category: 'social', wifiWeight: 30, mobileWeight: 22 },
-  { name: 'Reddit', package: 'com.reddit.frontpage', category: 'social', wifiWeight: 8, mobileWeight: 7 },
-  { name: 'Google Play Store', package: 'com.android.vending', category: 'system', wifiWeight: 18, mobileWeight: 4 },
-  { name: 'Android OS System', package: 'android.system.core', category: 'system', wifiWeight: 6, mobileWeight: 5 },
-  { name: 'Zoom Meetings', package: 'us.zoom.videomeetings', category: 'productivity', wifiWeight: 20, mobileWeight: 3 },
-  { name: 'Telegram', package: 'org.telegram.messenger', category: 'social', wifiWeight: 9, mobileWeight: 8 },
-  { name: 'Google Maps', package: 'com.google.android.apps.maps', category: 'other', wifiWeight: 4, mobileWeight: 10 },
-  { name: 'PUBG Mobile', package: 'com.tencent.ig', category: 'games', wifiWeight: 22, mobileWeight: 12 },
-  { name: 'Gmail', package: 'com.google.android.gm', category: 'productivity', wifiWeight: 3, mobileWeight: 2 },
-  { name: 'Google Photos', package: 'com.google.android.apps.photos', category: 'media', wifiWeight: 16, mobileWeight: 3 },
-  { name: 'Twitter / X', package: 'com.twitter.android', category: 'social', wifiWeight: 12, mobileWeight: 11 },
+const CATALOG_APPS: CatalogAppEntry[] = [
+  { name: 'YouTube', package: 'com.google.android.youtube', category: 'media', appType: 'installed', wifiWeight: 45, mobileWeight: 20 },
+  { name: 'Instagram', package: 'com.instagram.android', category: 'social', appType: 'installed', wifiWeight: 25, mobileWeight: 25 },
+  { name: 'Google Chrome', package: 'com.android.chrome', category: 'browser', appType: 'installed', wifiWeight: 15, mobileWeight: 12 },
+  { name: 'WhatsApp', package: 'com.whatsapp', category: 'social', appType: 'installed', wifiWeight: 10, mobileWeight: 14 },
+  { name: 'Netflix', package: 'com.netflix.mediaclient', category: 'media', appType: 'installed', wifiWeight: 35, mobileWeight: 8 },
+  { name: 'Spotify', package: 'com.spotify.music', category: 'media', appType: 'installed', wifiWeight: 12, mobileWeight: 9 },
+  { name: 'TikTok', package: 'com.zhiliaoapp.musically', category: 'social', appType: 'installed', wifiWeight: 30, mobileWeight: 22 },
+  { name: 'Reddit', package: 'com.reddit.frontpage', category: 'social', appType: 'installed', wifiWeight: 8, mobileWeight: 7 },
+  { name: 'Zoom Meetings', package: 'us.zoom.videomeetings', category: 'productivity', appType: 'installed', wifiWeight: 20, mobileWeight: 3 },
+  { name: 'Telegram', package: 'org.telegram.messenger', category: 'social', appType: 'installed', wifiWeight: 9, mobileWeight: 8 },
+  { name: 'Google Maps', package: 'com.google.android.apps.maps', category: 'other', appType: 'installed', wifiWeight: 4, mobileWeight: 10 },
+  { name: 'PUBG Mobile', package: 'com.tencent.ig', category: 'games', appType: 'installed', wifiWeight: 22, mobileWeight: 12 },
+  { name: 'Gmail', package: 'com.google.android.gm', category: 'productivity', appType: 'installed', wifiWeight: 3, mobileWeight: 2 },
+  { name: 'Google Photos', package: 'com.google.android.apps.photos', category: 'media', appType: 'installed', wifiWeight: 16, mobileWeight: 3 },
+  { name: 'Twitter / X', package: 'com.twitter.android', category: 'social', appType: 'installed', wifiWeight: 12, mobileWeight: 11 },
+  // Aggregated System Services
+  { name: 'System Services', package: 'android.system.services', category: 'system', appType: 'system', wifiWeight: 16, mobileWeight: 9 },
+  // Aggregated Removed Apps
+  { name: 'Removed Apps', package: 'app.removed.historical', category: 'other', appType: 'removed', wifiWeight: 18, mobileWeight: 12 },
 ];
 
 class StorageService {
@@ -209,15 +220,21 @@ class StorageService {
       const catalogInfo = CATALOG_APPS.find((c) => c.package === pkg);
       const appName = catalogInfo ? catalogInfo.name : pkg.split('.').pop() || pkg;
       const category = (catalogInfo?.category || 'other') as AppUsageItem['category'];
-      
+      const appType: AppItemType = catalogInfo?.appType || (pkg === 'app.removed.historical' ? 'removed' : (pkg.startsWith('android') ? 'system' : 'installed'));
+
       const wifiTotal = agg.wifiRx + agg.wifiTx;
       const mobileTotal = agg.mobileRx + agg.mobileTx;
       const combinedTotal = wifiTotal + mobileTotal;
+
+      let iconColor = getAppColor(appName);
+      if (appType === 'system') iconColor = '#64748B';
+      if (appType === 'removed') iconColor = '#EF4444';
 
       return {
         id: pkg,
         packageName: pkg,
         appName,
+        appType,
         wifiRxBytes: agg.wifiRx,
         wifiTxBytes: agg.wifiTx,
         wifiTotalBytes: wifiTotal,
@@ -225,9 +242,9 @@ class StorageService {
         mobileTxBytes: agg.mobileTx,
         mobileTotalBytes: mobileTotal,
         totalBytes: combinedTotal,
-        iconColor: getAppColor(appName),
+        iconColor,
         category,
-        isSystemApp: pkg.startsWith('android') || pkg.startsWith('com.android'),
+        isSystemApp: appType === 'system',
       };
     });
 
@@ -270,4 +287,3 @@ class StorageService {
 }
 
 export const storageService = new StorageService();
-

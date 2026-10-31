@@ -4,6 +4,7 @@ import LocalNetworkStats from '../../modules/network-stats';
 export interface NativeAppStats {
   packageName: string;
   appName: string;
+  appType?: 'installed' | 'system' | 'removed';
   uid: number;
   wifiRxBytes: number;
   wifiTxBytes: number;

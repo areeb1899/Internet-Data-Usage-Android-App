@@ -44,32 +44,62 @@ export const AppUsageItem: React.FC<AppUsageItemProps> = ({
   const percentOfMax = maxUsageBytes > 0 ? Math.min(100, Math.max(2, (usageBytes / maxUsageBytes) * 100)) : 0;
   const initial = item.appName.charAt(0).toUpperCase();
 
+  const isSystem = item.appType === 'system';
+  const isRemoved = item.appType === 'removed';
+
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        isSystem && styles.systemCard,
+        isRemoved && styles.removedCard,
+      ]}
       onPress={() => onPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.contentRow}>
         {/* App Avatar */}
         <View style={[styles.avatar, { backgroundColor: item.iconColor }]}>
-          <Text style={styles.avatarText}>{initial}</Text>
+          {isSystem ? (
+            <Icon name="settings" size={20} color="#FFFFFF" />
+          ) : isRemoved ? (
+            <Icon name="trash" size={20} color="#FFFFFF" />
+          ) : (
+            <Text style={styles.avatarText}>{initial}</Text>
+          )}
         </View>
 
         {/* Middle: App Name & Subdetails */}
         <View style={styles.middleColumn}>
           <View style={styles.titleRow}>
-            <Text style={styles.appName} numberOfLines={1}>
+            <Text
+              style={[
+                styles.appName,
+                isRemoved && { color: '#F87171' },
+                isSystem && { color: '#E2E8F0' },
+              ]}
+              numberOfLines={1}
+            >
               {item.appName}
             </Text>
-            {item.isSystemApp && (
+            {isSystem && (
               <View style={styles.systemBadge}>
-                <Text style={styles.systemBadgeText}>SYS</Text>
+                <Text style={styles.systemBadgeText}>System</Text>
+              </View>
+            )}
+            {isRemoved && (
+              <View style={styles.removedBadge}>
+                <Text style={styles.removedBadgeText}>Uninstalled</Text>
               </View>
             )}
           </View>
-          <Text style={styles.packageName} numberOfLines={1}>
-            {item.packageName}
+
+          <Text style={styles.sublabel} numberOfLines={1}>
+            {isSystem
+              ? 'OS & Background Services'
+              : isRemoved
+              ? 'Previously used internet on mobile'
+              : 'Installed on this device'}
           </Text>
 
           {/* Rx / Tx Micro Stats */}
@@ -121,6 +151,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.cardBorder,
   },
+  systemCard: {
+    borderColor: 'rgba(100, 116, 139, 0.3)',
+  },
+  removedCard: {
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+  },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -154,20 +190,35 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
   },
   systemBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 4,
+    backgroundColor: 'rgba(148, 163, 184, 0.15)',
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.3)',
   },
   systemBadgeText: {
     fontSize: 9,
-    color: theme.colors.textMuted,
+    color: '#94A3B8',
     fontWeight: '600',
   },
-  packageName: {
+  removedBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  removedBadgeText: {
+    fontSize: 9,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  sublabel: {
     fontSize: 11,
     color: theme.colors.textMuted,
-    marginTop: 1,
+    marginTop: 2,
   },
   rxTxRow: {
     flexDirection: 'row',
@@ -205,4 +256,3 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 });
-

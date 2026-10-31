@@ -18,10 +18,13 @@ export interface TimeRange {
   endDate: Date;
 }
 
+export type AppItemType = 'installed' | 'system' | 'removed';
+
 export interface AppUsageItem {
   id: string;
   packageName: string;
   appName: string;
+  appType: AppItemType;
   wifiRxBytes: number;
   wifiTxBytes: number;
   wifiTotalBytes: number;
@@ -61,4 +64,3 @@ export interface DailySnapshot {
     };
   };
 }
-

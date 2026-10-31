@@ -9,6 +9,7 @@ interface HeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onRequestPermission: () => void;
+  onReset: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   isLoading,
   onRefresh,
   onRequestPermission,
+  onReset,
 }) => {
   return (
     <View style={styles.container}>
@@ -55,6 +57,18 @@ export const Header: React.FC<HeaderProps> = ({
           </TouchableOpacity>
         )}
 
+        {/* Reset Button */}
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={onReset}
+          activeOpacity={0.7}
+          disabled={isLoading}
+        >
+          <Icon name="trash" size={14} color="#EF4444" />
+          <Text style={styles.resetText}>Reset</Text>
+        </TouchableOpacity>
+
+        {/* Refresh Button */}
         <TouchableOpacity
           style={styles.refreshButton}
           onPress={onRefresh}
@@ -64,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
           {isLoading ? (
             <ActivityIndicator size="small" color="#38BDF8" />
           ) : (
-            <Icon name="reload" size={18} color="#94A3B8" />
+            <Icon name="reload" size={16} color="#94A3B8" />
           )}
         </TouchableOpacity>
       </View>
@@ -87,6 +101,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    flex: 1,
   },
   logoBadge: {
     width: 38,
@@ -105,10 +120,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   appName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: theme.colors.textPrimary,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -147,9 +162,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  resetText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   refreshButton: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 8,
     backgroundColor: theme.colors.card,
     borderWidth: 1,
@@ -158,4 +189,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-

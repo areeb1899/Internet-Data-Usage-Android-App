@@ -65,14 +65,14 @@ class NetworkStatsModule : Module() {
       }
       val statsMap = mutableMapOf<Int, UidStats>()
 
-      // 1. Query Wi-Fi
+      // 1. Query Wi-Fi (capture all non-zero UIDs, including UID_REMOVED = -4)
       try {
         val wifiStats = nsm.querySummary(ConnectivityManager.TYPE_WIFI, null, startMs, endMs)
         val bucket = NetworkStats.Bucket()
         while (wifiStats.hasNextBucket()) {
           wifiStats.getNextBucket(bucket)
           val uid = bucket.uid
-          if (uid > 0) {
+          if (uid != 0) {
             val stat = statsMap.getOrPut(uid) { UidStats() }
             stat.wifiRx += bucket.rxBytes
             stat.wifiTx += bucket.txBytes
@@ -88,7 +88,7 @@ class NetworkStatsModule : Module() {
         while (mobileStats.hasNextBucket()) {
           mobileStats.getNextBucket(bucket)
           val uid = bucket.uid
-          if (uid > 0) {
+          if (uid != 0) {
             val stat = statsMap.getOrPut(uid) { UidStats() }
             stat.mobileRx += bucket.rxBytes
             stat.mobileTx += bucket.txBytes
@@ -98,31 +98,105 @@ class NetworkStatsModule : Module() {
       } catch (e: Exception) {}
 
       val resultList = mutableListOf<Map<String, Any>>()
+
+      // Aggregators for System Services and Removed Apps
+      var sysWifiRx = 0L
+      var sysWifiTx = 0L
+      var sysMobileRx = 0L
+      var sysMobileTx = 0L
+
+      var remWifiRx = 0L
+      var remWifiTx = 0L
+      var remMobileRx = 0L
+      var remMobileTx = 0L
+
       for ((uid, stat) in statsMap) {
         if (stat.wifiRx == 0L && stat.wifiTx == 0L && stat.mobileRx == 0L && stat.mobileTx == 0L) {
           continue
         }
 
+        // Removed Apps: UID -4 (UID_REMOVED) or user app UID (>= 10000) that is no longer installed
         val packages = pm.getPackagesForUid(uid)
-        val packageName = packages?.firstOrNull() ?: "uid_$uid"
-        var appName = packageName
+        val isRemoved = (uid == -4) || (uid >= 10000 && (packages == null || packages.isEmpty()))
 
-        try {
-          val appInfo: ApplicationInfo = pm.getApplicationInfo(packageName, 0)
-          appName = pm.getApplicationLabel(appInfo).toString()
-        } catch (e: Exception) {
-          if (uid == 1000) appName = "Android System"
+        if (isRemoved) {
+          remWifiRx += stat.wifiRx
+          remWifiTx += stat.wifiTx
+          remMobileRx += stat.mobileRx
+          remMobileTx += stat.mobileTx
+          continue
         }
 
+        val packageName = packages?.firstOrNull() ?: "uid_$uid"
+        var isInstalledUserApp = false
+        var appName = packageName
+
+        if (uid >= 10000) {
+          try {
+            val appInfo: ApplicationInfo = pm.getApplicationInfo(packageName, 0)
+            val launchIntent = pm.getLaunchIntentForPackage(packageName)
+            val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+
+            // If it has a launcher icon or is a user-installed non-system app, show installed name
+            if (launchIntent != null || !isSystem) {
+              isInstalledUserApp = true
+              appName = pm.getApplicationLabel(appInfo).toString()
+            }
+          } catch (e: Exception) {
+            isInstalledUserApp = false
+          }
+        }
+
+        if (isInstalledUserApp) {
+          resultList.add(
+            mapOf(
+              "uid" to uid,
+              "packageName" to packageName,
+              "appName" to appName,
+              "appType" to "installed",
+              "wifiRxBytes" to stat.wifiRx.toDouble(),
+              "wifiTxBytes" to stat.wifiTx.toDouble(),
+              "mobileRxBytes" to stat.mobileRx.toDouble(),
+              "mobileTxBytes" to stat.mobileTx.toDouble()
+            )
+          )
+        } else {
+          // Internal background Android system services
+          sysWifiRx += stat.wifiRx
+          sysWifiTx += stat.wifiTx
+          sysMobileRx += stat.mobileRx
+          sysMobileTx += stat.mobileTx
+        }
+      }
+
+      // Add aggregated System Services if any usage recorded
+      if (sysWifiRx > 0 || sysWifiTx > 0 || sysMobileRx > 0 || sysMobileTx > 0) {
         resultList.add(
           mapOf(
-            "uid" to uid,
-            "packageName" to packageName,
-            "appName" to appName,
-            "wifiRxBytes" to stat.wifiRx.toDouble(),
-            "wifiTxBytes" to stat.wifiTx.toDouble(),
-            "mobileRxBytes" to stat.mobileRx.toDouble(),
-            "mobileTxBytes" to stat.mobileTx.toDouble()
+            "uid" to 1000,
+            "packageName" to "android.system.services",
+            "appName" to "System Services",
+            "appType" to "system",
+            "wifiRxBytes" to sysWifiRx.toDouble(),
+            "wifiTxBytes" to sysWifiTx.toDouble(),
+            "mobileRxBytes" to sysMobileRx.toDouble(),
+            "mobileTxBytes" to sysMobileTx.toDouble()
+          )
+        )
+      }
+
+      // Add aggregated Removed Apps if any usage recorded
+      if (remWifiRx > 0 || remWifiTx > 0 || remMobileRx > 0 || remMobileTx > 0) {
+        resultList.add(
+          mapOf(
+            "uid" to -4,
+            "packageName" to "app.removed.historical",
+            "appName" to "Removed Apps",
+            "appType" to "removed",
+            "wifiRxBytes" to remWifiRx.toDouble(),
+            "wifiTxBytes" to remWifiTx.toDouble(),
+            "mobileRxBytes" to remMobileRx.toDouble(),
+            "mobileTxBytes" to remMobileTx.toDouble()
           )
         )
       }
@@ -131,4 +205,3 @@ class NetworkStatsModule : Module() {
     }
   }
 }
-
