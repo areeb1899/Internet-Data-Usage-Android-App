@@ -17,6 +17,7 @@ export type IconName =
   | 'reload'
   | 'trending-up'
   | 'chevron-forward'
+  | 'chevron-back'
   | 'key-outline'
   | 'filter-outline'
   | 'globe-outline'
@@ -32,7 +33,6 @@ interface IconProps {
 }
 
 export const Icon: React.FC<IconProps> = ({ name, size = 16, color = '#FFFFFF' }) => {
-  // Ultra-lightweight vector symbol renderer with zero font bundle overhead
   switch (name) {
     case 'wifi':
       return (
@@ -154,6 +154,15 @@ export const Icon: React.FC<IconProps> = ({ name, size = 16, color = '#FFFFFF' }
         </View>
       );
 
+    case 'chevron-back':
+      return (
+        <View style={[styles.center, { width: size, height: size }]}>
+          <Text style={{ fontSize: size * 0.9, color, fontWeight: '700', lineHeight: size }}>
+            ‹
+          </Text>
+        </View>
+      );
+
     case 'key-outline':
       return (
         <View style={[styles.center, { width: size, height: size }]}>
@@ -168,15 +177,6 @@ export const Icon: React.FC<IconProps> = ({ name, size = 16, color = '#FFFFFF' }
         <View style={[styles.center, { width: size, height: size }]}>
           <Text style={{ fontSize: size * 0.85, color, lineHeight: size }}>
             ⚡
-          </Text>
-        </View>
-      );
-
-    case 'text':
-      return (
-        <View style={[styles.center, { width: size, height: size }]}>
-          <Text style={{ fontSize: size * 0.85, color, fontWeight: '700', lineHeight: size }}>
-            A-Z
           </Text>
         </View>
       );
@@ -200,6 +200,15 @@ export const Icon: React.FC<IconProps> = ({ name, size = 16, color = '#FFFFFF' }
         </View>
       );
 
+    case 'text':
+      return (
+        <View style={[styles.center, { width: size, height: size }]}>
+          <Text style={{ fontSize: size * 0.85, color, fontWeight: '700', lineHeight: size }}>
+            A-Z
+          </Text>
+        </View>
+      );
+
     default:
       return (
         <View style={[styles.center, { width: size, height: size }]}>
@@ -215,4 +224,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-
