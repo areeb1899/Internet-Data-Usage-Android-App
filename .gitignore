@@ -15,3 +15,7 @@ web-build/
 
 # Temporary files created by Metro
 .metro-health-check*
+
+# Gradle cache
+.gradle/
+**/android/.gradle/
