@@ -34,6 +34,11 @@
         "android.permission.INTERNET"
       ]
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "f51d18b4-e465-4d99-92c2-3511aba9856f"
+      }
+    }
   }
 }

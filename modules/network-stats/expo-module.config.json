@@ -1,0 +1,9 @@
+{
+  "name": "network-stats",
+  "platforms": ["android"],
+  "android": {
+    "package": "expo.modules.networkstats",
+    "modules": ["expo.modules.networkstats.NetworkStatsModule"]
+  }
+}
+

@@ -1,6 +1,5 @@
-import { NativeModules, Platform, Linking } from 'react-native';
-
-const { NetworkStatsModule } = NativeModules;
+import { Platform, Linking, NativeModules } from 'react-native';
+import LocalNetworkStats from '../../modules/network-stats';
 
 export interface NativeAppStats {
   packageName: string;
@@ -17,7 +16,7 @@ export const NetworkStats = {
    * Check if the native Android NetworkStats module is available in this runtime
    */
   isAvailable(): boolean {
-    return Platform.OS === 'android' && Boolean(NetworkStatsModule);
+    return Platform.OS === 'android' && Boolean(LocalNetworkStats || NativeModules.NetworkStatsModule);
   },
 
   /**
@@ -28,7 +27,13 @@ export const NetworkStats = {
       return true; // Virtual / simulation mode assumes granted
     }
     try {
-      return await NetworkStatsModule.checkPermission();
+      if (LocalNetworkStats && LocalNetworkStats.checkPermission) {
+        return await LocalNetworkStats.checkPermission();
+      }
+      if (NativeModules.NetworkStatsModule && NativeModules.NetworkStatsModule.checkPermission) {
+        return await NativeModules.NetworkStatsModule.checkPermission();
+      }
+      return true;
     } catch (err) {
       console.warn('NetworkStats.checkPermission error:', err);
       return false;
@@ -41,10 +46,16 @@ export const NetworkStats = {
   async requestPermission(): Promise<void> {
     if (this.isAvailable()) {
       try {
-        await NetworkStatsModule.requestPermission();
-        return;
+        if (LocalNetworkStats && LocalNetworkStats.requestPermission) {
+          await LocalNetworkStats.requestPermission();
+          return;
+        }
+        if (NativeModules.NetworkStatsModule && NativeModules.NetworkStatsModule.requestPermission) {
+          await NativeModules.NetworkStatsModule.requestPermission();
+          return;
+        }
       } catch (err) {
-        console.warn('Error opening usage access with module, opening fallback settings', err);
+        console.warn('Error opening usage access with module:', err);
       }
     }
     // Fallback if native module not directly linked: open system app settings
@@ -59,11 +70,16 @@ export const NetworkStats = {
       return null;
     }
     try {
-      return await NetworkStatsModule.queryUsage(startTimeMs, endTimeMs);
+      if (LocalNetworkStats && LocalNetworkStats.queryUsage) {
+        return await LocalNetworkStats.queryUsage(startTimeMs, endTimeMs);
+      }
+      if (NativeModules.NetworkStatsModule && NativeModules.NetworkStatsModule.queryUsage) {
+        return await NativeModules.NetworkStatsModule.queryUsage(startTimeMs, endTimeMs);
+      }
+      return null;
     } catch (err) {
-      console.warn('NetworkStatsModule.queryUsage failed:', err);
+      console.warn('NetworkStats.queryUsage failed:', err);
       return null;
     }
   },
 };
-
