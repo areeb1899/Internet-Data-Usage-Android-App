@@ -1,4 +1,4 @@
-# NetUsage — Wi-Fi & Mobile Internet Data Usage Android App
+# Internet Usage — Wi-Fi & Mobile Internet Data Usage Android App
 
 A lightweight, high-performance React Native (Expo) Android application designed with **minimum app size** (~1.65 MB Hermes bundle) and a clean, responsive UI. It provides comprehensive monitoring of **Wi-Fi** and **Mobile cellular data usage**, separate section tabs, per-app data breakdown, a flexible time-range selector, and a persistent **1-year historical record**.
 

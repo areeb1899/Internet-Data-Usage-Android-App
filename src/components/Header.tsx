@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { Icon } from './Icon';
 import { theme } from '../theme';
 
@@ -22,10 +22,14 @@ export const Header: React.FC<HeaderProps> = ({
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <View style={styles.logoBadge}>
-          <Icon name="swap-vertical" size={18} color="#38BDF8" />
+          <Image
+            source={require('../../assets/icon.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
         <View>
-          <Text style={styles.appName}>NetUsage</Text>
+          <Text style={styles.appName}>Internet Usage</Text>
           <View style={styles.badgeRow}>
             <View style={[styles.statusDot, { backgroundColor: isNative ? '#10B981' : '#38BDF8' }]} />
             <Text style={styles.statusText}>
@@ -85,14 +89,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logoBadge: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
+    padding: 3,
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 18,

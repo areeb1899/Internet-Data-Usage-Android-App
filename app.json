@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NetUsage",
+    "name": "Internet Usage",
     "slug": "internet-data-usage",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,7 +25,7 @@
       "package": "com.netusage.datausage",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B0F19"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "android.permission.PACKAGE_USAGE_STATS",
