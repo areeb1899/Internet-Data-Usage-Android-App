@@ -9,6 +9,7 @@ apply from: expoModulesCorePlugin
 applyKotlinExpoModulesCorePlugin()
 
 android {
+  namespace "expo.modules.networkstats"
   compileSdkVersion Integer.parseInt(rootProject.ext.has("compileSdkVersion") ? "${rootProject.ext.compileSdkVersion}" : "35")
 
   defaultConfig {

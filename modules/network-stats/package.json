@@ -1,0 +1,7 @@
+{
+  "name": "network-stats",
+  "version": "1.0.0",
+  "description": "Native Android NetworkStatsManager module for Internet Usage",
+  "main": "index.ts",
+  "types": "index.ts"
+}
