@@ -19,12 +19,12 @@ interface CustomPreset {
 }
 
 const PRESETS: CustomPreset[] = [
-  { label: 'Past 1 Full Year', sublabel: '365 days of recorded history', days: 365 },
-  { label: 'Past 6 Months', sublabel: '180 days overview', days: 180 },
-  { label: 'Past 3 Months (Quarter)', sublabel: '90 days overview', days: 90 },
+  { label: 'Past 30 Days', sublabel: '1 full billing cycle', days: 30 },
+  { label: 'Past 14 Days', sublabel: '2 weeks period', days: 14 },
+  { label: 'Past 7 Days', sublabel: '1 week period', days: 7 },
+  { label: 'Past 3 Days', sublabel: 'Recent 72 hours', days: 3 },
   { label: 'Past 60 Days', sublabel: '2 billing cycles', days: 60 },
-  { label: 'Past 30 Days', sublabel: '1 billing cycle', days: 30 },
-  { label: 'Past 14 Days', sublabel: '2 weeks', days: 14 },
+  { label: 'Past 90 Days', sublabel: 'Quarterly review', days: 90 },
 ];
 
 export const CustomDateModal: React.FC<CustomDateModalProps> = ({
@@ -70,7 +70,7 @@ export const CustomDateModal: React.FC<CustomDateModalProps> = ({
           <View style={styles.modalHeader}>
             <View style={styles.titleRow}>
               <Icon name="calendar" size={18} color="#38BDF8" />
-              <Text style={styles.modalTitle}>Select Custom Time Range</Text>
+              <Text style={styles.modalTitle}>Custom Date Range</Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Icon name="close" size={20} color={theme.colors.textSecondary} />
@@ -269,4 +269,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

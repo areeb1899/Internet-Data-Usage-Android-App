@@ -6,9 +6,6 @@ export type TimeRangePreset =
   | 'week'
   | 'month'
   | 'last30'
-  | 'last90'
-  | 'last180'
-  | 'year'
   | 'custom';
 
 export interface TimeRange {
@@ -16,25 +13,6 @@ export interface TimeRange {
   label: string;
   startDate: Date;
   endDate: Date;
-}
-
-export type AppItemType = 'installed' | 'system' | 'removed';
-
-export interface AppUsageItem {
-  id: string;
-  packageName: string;
-  appName: string;
-  appType: AppItemType;
-  wifiRxBytes: number;
-  wifiTxBytes: number;
-  wifiTotalBytes: number;
-  mobileRxBytes: number;
-  mobileTxBytes: number;
-  mobileTotalBytes: number;
-  totalBytes: number;
-  iconColor: string;
-  category: 'media' | 'social' | 'browser' | 'games' | 'productivity' | 'system' | 'other';
-  isSystemApp?: boolean;
 }
 
 export interface UsageSummary {
@@ -48,19 +26,14 @@ export interface UsageSummary {
   daysInRange: number;
   dailyAvgWifiBytes: number;
   dailyAvgMobileBytes: number;
-  appsCount: number;
 }
 
 export interface DailySnapshot {
   date: string; // YYYY-MM-DD
+  wifiRx: number;
+  wifiTx: number;
   wifiTotal: number;
+  mobileRx: number;
+  mobileTx: number;
   mobileTotal: number;
-  appRecords: {
-    [packageName: string]: {
-      wifiRx: number;
-      wifiTx: number;
-      mobileRx: number;
-      mobileTx: number;
-    };
-  };
 }

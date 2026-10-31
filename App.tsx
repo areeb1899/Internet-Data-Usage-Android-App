@@ -4,15 +4,14 @@ import {
   View,
   ScrollView,
   RefreshControl,
-  SafeAreaView,
-  StatusBar as RNStatusBar,
   Platform,
   Alert,
+  Text,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { NetworkType, TimeRange, AppUsageItem as AppUsageItemType, UsageSummary } from './src/types/dataUsage';
+import { NetworkType, TimeRange, UsageSummary } from './src/types/dataUsage';
 import { getPresetTimeRanges } from './src/utils/formatters';
 import { dataUsageService } from './src/services/dataUsageService';
 import { storageService } from './src/services/storageService';
@@ -23,8 +22,6 @@ import { Header } from './src/components/Header';
 import { NavigationBar } from './src/components/NavigationBar';
 import { TimeRangeSelector } from './src/components/TimeRangeSelector';
 import { SummaryCard } from './src/components/SummaryCard';
-import { AppUsageList } from './src/components/AppUsageList';
-import { AppDetailModal } from './src/components/AppDetailModal';
 import { CustomDateModal } from './src/components/CustomDateModal';
 
 const presetRanges = getPresetTimeRanges();
@@ -33,7 +30,6 @@ function MainScreen() {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<NetworkType>('wifi');
   const [selectedRange, setSelectedRange] = useState<TimeRange>(presetRanges[0]); // default 'today'
-  const [apps, setApps] = useState<AppUsageItemType[]>([]);
   const [summary, setSummary] = useState<UsageSummary>({
     totalWifiBytes: 0,
     totalWifiRxBytes: 0,
@@ -45,17 +41,12 @@ function MainScreen() {
     daysInRange: 1,
     dailyAvgWifiBytes: 0,
     dailyAvgMobileBytes: 0,
-    appsCount: 0,
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isNative, setIsNative] = useState<boolean>(false);
   const [permissionGranted, setPermissionGranted] = useState<boolean>(true);
-
-  // Modals state
-  const [selectedApp, setSelectedApp] = useState<AppUsageItemType | null>(null);
-  const [isDetailModalVisible, setIsDetailModalVisible] = useState<boolean>(false);
   const [isCustomDateModalVisible, setIsCustomDateModalVisible] = useState<boolean>(false);
 
   // Load data for the chosen date range
@@ -72,7 +63,6 @@ function MainScreen() {
         selectedRange.endDate
       );
 
-      setApps(response.apps);
       setSummary(response.summary);
       setIsNative(response.isNative);
       setPermissionGranted(response.permissionGranted);
@@ -96,34 +86,45 @@ function MainScreen() {
   // Request system permission if native Android
   const handleRequestPermission = async () => {
     await NetworkStats.requestPermission();
-    // After user returns from Settings, re-check
     setTimeout(() => {
       loadUsageData(true);
     }, 1500);
   };
 
+  // Foolproof Reset action
+  const executeReset = async () => {
+    setIsLoading(true);
+    try {
+      await storageService.resetData();
+      await loadUsageData(true);
+    } catch (err) {
+      console.warn('Reset error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleReset = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm('Reset all internet data usage records to 0 B?')) {
+        executeReset();
+      }
+      return;
+    }
+
     Alert.alert(
       'Reset Data Usage',
-      'Are you sure you want to reset all recorded internet usage data? This will clear historical statistics.',
+      'Are you sure you want to reset all recorded internet usage data? All statistics will be reset to 0 B.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
-          onPress: async () => {
-            setIsLoading(true);
-            await storageService.resetData();
-            await loadUsageData(true);
-          },
+          onPress: executeReset,
         },
-      ]
+      ],
+      { cancelable: true }
     );
-  };
-
-  const handleAppPress = (app: AppUsageItemType) => {
-    setSelectedApp(app);
-    setIsDetailModalVisible(true);
   };
 
   return (
@@ -140,7 +141,7 @@ function MainScreen() {
     >
       <StatusBar style="light" backgroundColor={theme.colors.background} />
 
-      {/* Top Header */}
+      {/* Top Header with App Icon and Reset Button */}
       <Header
         isNative={isNative}
         permissionGranted={permissionGranted}
@@ -159,9 +160,10 @@ function MainScreen() {
         grandTotalBytes={summary.grandTotalBytes}
       />
 
-      {/* Scrollable Core Screen */}
+      {/* Scrollable Core Dashboard */}
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -180,26 +182,15 @@ function MainScreen() {
           onOpenCustomModal={() => setIsCustomDateModalVisible(true)}
         />
 
-        {/* Selected Section Summary Metrics Card */}
+        {/* Selected Section Total Usage Metrics & Breakdown */}
         <SummaryCard activeTab={activeTab} summary={summary} />
 
-        {/* Per-App Data Usage List */}
-        <AppUsageList
-          apps={apps}
-          activeTab={activeTab}
-          onSelectApp={handleAppPress}
-        />
+        {/* Bottom Credits Footer */}
+        <View style={styles.footerContainer}>
+          <View style={styles.footerDivider} />
+          <Text style={styles.footerText}>Developed by Areeb Ahmed v1.1</Text>
+        </View>
       </ScrollView>
-
-      {/* Per-App Detailed Breakdown Modal */}
-      <AppDetailModal
-        visible={isDetailModalVisible}
-        app={selectedApp}
-        onClose={() => {
-          setIsDetailModalVisible(false);
-          setSelectedApp(null);
-        }}
-      />
 
       {/* Custom Time Range Selector Modal */}
       <CustomDateModal
@@ -228,5 +219,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 24,
+  },
+  footerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 28,
+    paddingHorizontal: 24,
+  },
+  footerDivider: {
+    width: '60%',
+    height: 1,
+    backgroundColor: theme.colors.cardBorder,
+    marginBottom: 16,
+  },
+  footerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+    letterSpacing: 0.5,
+  },
 });
-

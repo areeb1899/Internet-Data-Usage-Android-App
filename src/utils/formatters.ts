@@ -70,18 +70,6 @@ export function getPresetTimeRanges(): TimeRange[] {
   const start30Days = new Date(startToday);
   start30Days.setDate(start30Days.getDate() - 29);
 
-  // Last 90 days (3 months)
-  const start90Days = new Date(startToday);
-  start90Days.setDate(start90Days.getDate() - 89);
-
-  // Last 180 days (6 months)
-  const start180Days = new Date(startToday);
-  start180Days.setDate(start180Days.getDate() - 179);
-
-  // Past 1 Year (365 days)
-  const startYear = new Date(startToday);
-  startYear.setDate(startYear.getDate() - 364);
-
   return [
     {
       id: 'today',
@@ -111,24 +99,6 @@ export function getPresetTimeRanges(): TimeRange[] {
       id: 'last30',
       label: 'Last 30 Days',
       startDate: start30Days,
-      endDate: endToday,
-    },
-    {
-      id: 'last90',
-      label: '3 Months',
-      startDate: start90Days,
-      endDate: endToday,
-    },
-    {
-      id: 'last180',
-      label: '6 Months',
-      startDate: start180Days,
-      endDate: endToday,
-    },
-    {
-      id: 'year',
-      label: '1 Year (365d)',
-      startDate: startYear,
       endDate: endToday,
     },
     {

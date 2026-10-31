@@ -49,13 +49,18 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ activeTab, summary }) 
   const rxPercent = totalBytes > 0 ? (rxBytes / totalBytes) * 100 : 0;
   const txPercent = totalBytes > 0 ? (txBytes / totalBytes) * 100 : 0;
 
+  const totalAll = summary.grandTotalBytes;
+  const wifiRatio = totalAll > 0 ? (summary.totalWifiBytes / totalAll) * 100 : 0;
+  const mobileRatio = totalAll > 0 ? (summary.totalMobileBytes / totalAll) * 100 : 0;
+
   return (
     <View style={styles.container}>
-      <View style={[styles.card, { borderColor: `${accentColor}33` }]}>
+      {/* Primary Active Card */}
+      <View style={[styles.card, { borderColor: `${accentColor}44` }]}>
         {/* Card Header */}
         <View style={styles.headerRow}>
           <View style={styles.sectionBadge}>
-            <Icon name={iconName} size={15} color={accentColor} />
+            <Icon name={iconName} size={16} color={accentColor} />
             <Text style={[styles.sectionTitle, { color: accentColor }]}>{sectionTitle}</Text>
           </View>
           <View style={styles.daysBadge}>
@@ -72,7 +77,7 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ activeTab, summary }) 
           </View>
         </View>
 
-        {/* Proportion Bar */}
+        {/* Download / Upload Proportion Bar */}
         <View style={styles.barContainer}>
           <View style={[styles.rxBar, { width: `${Math.max(4, Math.min(96, rxPercent))}%` }]} />
           <View style={[styles.txBar, { width: `${Math.max(4, Math.min(96, txPercent))}%` }]} />
@@ -105,6 +110,57 @@ export const SummaryCard: React.FC<SummaryCardProps> = ({ activeTab, summary }) 
           </View>
         </View>
       </View>
+
+      {/* Dual Section Breakdown Comparison */}
+      <View style={styles.comparisonCard}>
+        <Text style={styles.comparisonTitle}>Network Type Breakdown</Text>
+
+        <View style={styles.dualGrid}>
+          {/* Wi-Fi Box */}
+          <View style={[styles.subCard, { borderColor: theme.colors.wifiBorder }]}>
+            <View style={styles.subCardHeader}>
+              <Icon name="wifi" size={14} color={theme.colors.wifiLight} />
+              <Text style={[styles.subCardTitle, { color: theme.colors.wifiLight }]}>Wi-Fi Usage</Text>
+            </View>
+            <Text style={styles.subCardValue}>{formatBytes(summary.totalWifiBytes, 2)}</Text>
+            <View style={styles.subCardDetailRow}>
+              <Text style={styles.subCardDetail}>↓ {formatBytes(summary.totalWifiRxBytes, 1)}</Text>
+              <Text style={styles.subCardDetail}>↑ {formatBytes(summary.totalWifiTxBytes, 1)}</Text>
+            </View>
+            <Text style={styles.ratioPercentText}>{wifiRatio.toFixed(1)}% of total</Text>
+          </View>
+
+          {/* Mobile Box */}
+          <View style={[styles.subCard, { borderColor: theme.colors.mobileBorder }]}>
+            <View style={styles.subCardHeader}>
+              <Icon name="cellular" size={14} color={theme.colors.mobileLight} />
+              <Text style={[styles.subCardTitle, { color: theme.colors.mobileLight }]}>Mobile Usage</Text>
+            </View>
+            <Text style={styles.subCardValue}>{formatBytes(summary.totalMobileBytes, 2)}</Text>
+            <View style={styles.subCardDetailRow}>
+              <Text style={styles.subCardDetail}>↓ {formatBytes(summary.totalMobileRxBytes, 1)}</Text>
+              <Text style={styles.subCardDetail}>↑ {formatBytes(summary.totalMobileTxBytes, 1)}</Text>
+            </View>
+            <Text style={styles.ratioPercentText}>{mobileRatio.toFixed(1)}% of total</Text>
+          </View>
+        </View>
+
+        {/* Overall Split Bar */}
+        <View style={styles.splitBarContainer}>
+          <View style={[styles.wifiSplitBar, { width: `${Math.max(3, Math.min(97, wifiRatio))}%` }]} />
+          <View style={[styles.mobileSplitBar, { width: `${Math.max(3, Math.min(97, mobileRatio))}%` }]} />
+        </View>
+        <View style={styles.splitLegendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.wifiLight }]} />
+            <Text style={styles.legendLabel}>Wi-Fi ({wifiRatio.toFixed(0)}%)</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.colors.mobileLight }]} />
+            <Text style={styles.legendLabel}>Mobile ({mobileRatio.toFixed(0)}%)</Text>
+          </View>
+        </View>
+      </View>
     </View>
   );
 };
@@ -113,6 +169,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.xs,
+    gap: 12,
   },
   card: {
     backgroundColor: theme.colors.card,
@@ -238,5 +295,101 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.divider,
     marginHorizontal: theme.spacing.md,
   },
+  comparisonCard: {
+    backgroundColor: theme.colors.card,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.cardBorder,
+  },
+  comparisonTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: theme.spacing.md,
+  },
+  dualGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: theme.spacing.md,
+  },
+  subCard: {
+    flex: 1,
+    backgroundColor: theme.colors.cardAlt,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+  },
+  subCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  subCardTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  subCardValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: theme.colors.textPrimary,
+    marginBottom: 4,
+  },
+  subCardDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  subCardDetail: {
+    fontSize: 10,
+    color: theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  ratioPercentText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  splitBarContainer: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.cardAlt,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    gap: 2,
+    marginBottom: 8,
+  },
+  wifiSplitBar: {
+    backgroundColor: theme.colors.wifiLight,
+    height: '100%',
+    borderRadius: 3,
+  },
+  mobileSplitBar: {
+    backgroundColor: theme.colors.mobileLight,
+    height: '100%',
+    borderRadius: 3,
+  },
+  splitLegendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  legendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  legendLabel: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    fontWeight: '500',
+  },
 });
-

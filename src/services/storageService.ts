@@ -1,53 +1,24 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppUsageItem, DailySnapshot, UsageSummary, AppItemType } from '../types/dataUsage';
-import { getAppColor, toDateKey } from '../utils/formatters';
+import { DailySnapshot, UsageSummary } from '../types/dataUsage';
+import { toDateKey } from '../utils/formatters';
 
-const STORAGE_KEY_DAILY_RECORDS = '@net_usage_daily_v1';
-const STORAGE_KEY_INITIALIZED = '@net_usage_initialized_v1';
-
-interface CatalogAppEntry {
-  name: string;
-  package: string;
-  category: AppUsageItem['category'];
-  appType: AppItemType;
-  wifiWeight: number;
-  mobileWeight: number;
-}
-
-// Seed apps catalog with realistic metadata & usage weights
-const CATALOG_APPS: CatalogAppEntry[] = [
-  { name: 'YouTube', package: 'com.google.android.youtube', category: 'media', appType: 'installed', wifiWeight: 45, mobileWeight: 20 },
-  { name: 'Instagram', package: 'com.instagram.android', category: 'social', appType: 'installed', wifiWeight: 25, mobileWeight: 25 },
-  { name: 'Google Chrome', package: 'com.android.chrome', category: 'browser', appType: 'installed', wifiWeight: 15, mobileWeight: 12 },
-  { name: 'WhatsApp', package: 'com.whatsapp', category: 'social', appType: 'installed', wifiWeight: 10, mobileWeight: 14 },
-  { name: 'Netflix', package: 'com.netflix.mediaclient', category: 'media', appType: 'installed', wifiWeight: 35, mobileWeight: 8 },
-  { name: 'Spotify', package: 'com.spotify.music', category: 'media', appType: 'installed', wifiWeight: 12, mobileWeight: 9 },
-  { name: 'TikTok', package: 'com.zhiliaoapp.musically', category: 'social', appType: 'installed', wifiWeight: 30, mobileWeight: 22 },
-  { name: 'Reddit', package: 'com.reddit.frontpage', category: 'social', appType: 'installed', wifiWeight: 8, mobileWeight: 7 },
-  { name: 'Zoom Meetings', package: 'us.zoom.videomeetings', category: 'productivity', appType: 'installed', wifiWeight: 20, mobileWeight: 3 },
-  { name: 'Telegram', package: 'org.telegram.messenger', category: 'social', appType: 'installed', wifiWeight: 9, mobileWeight: 8 },
-  { name: 'Google Maps', package: 'com.google.android.apps.maps', category: 'other', appType: 'installed', wifiWeight: 4, mobileWeight: 10 },
-  { name: 'PUBG Mobile', package: 'com.tencent.ig', category: 'games', appType: 'installed', wifiWeight: 22, mobileWeight: 12 },
-  { name: 'Gmail', package: 'com.google.android.gm', category: 'productivity', appType: 'installed', wifiWeight: 3, mobileWeight: 2 },
-  { name: 'Google Photos', package: 'com.google.android.apps.photos', category: 'media', appType: 'installed', wifiWeight: 16, mobileWeight: 3 },
-  { name: 'Twitter / X', package: 'com.twitter.android', category: 'social', appType: 'installed', wifiWeight: 12, mobileWeight: 11 },
-  // Aggregated System Services
-  { name: 'System Services', package: 'android.system.services', category: 'system', appType: 'system', wifiWeight: 16, mobileWeight: 9 },
-  // Aggregated Removed Apps
-  { name: 'Removed Apps', package: 'app.removed.historical', category: 'other', appType: 'removed', wifiWeight: 18, mobileWeight: 12 },
-];
+const STORAGE_KEY_DAILY_RECORDS = '@net_usage_daily_v2';
+const STORAGE_KEY_INITIALIZED = '@net_usage_initialized_v2';
+const STORAGE_KEY_RESET_TIMESTAMP = '@net_usage_reset_timestamp_v2';
 
 class StorageService {
   private memoryCache: Record<string, DailySnapshot> | null = null;
+  private resetTimestamp: number | null = null;
 
   /**
-   * Initialize and seed 365 days of data if first launch
+   * Initialize and seed baseline records if first launch
    */
   async initialize(): Promise<void> {
     try {
+      await this.getResetTimestamp();
       const initialized = await AsyncStorage.getItem(STORAGE_KEY_INITIALIZED);
       if (!initialized) {
-        await this.seed365DaysHistory();
+        await this.seedBaselineHistory();
         await AsyncStorage.setItem(STORAGE_KEY_INITIALIZED, 'true');
       } else {
         await this.loadAllRecords();
@@ -59,7 +30,21 @@ class StorageService {
   }
 
   /**
-   * Load all records into memory cache for fast range slicing
+   * Retrieve the timestamp of the last manual reset
+   */
+  async getResetTimestamp(): Promise<number> {
+    if (this.resetTimestamp !== null) return this.resetTimestamp;
+    try {
+      const val = await AsyncStorage.getItem(STORAGE_KEY_RESET_TIMESTAMP);
+      this.resetTimestamp = val ? parseInt(val, 10) : 0;
+    } catch {
+      this.resetTimestamp = 0;
+    }
+    return this.resetTimestamp;
+  }
+
+  /**
+   * Load all records into memory cache
    */
   private async loadAllRecords(): Promise<Record<string, DailySnapshot>> {
     if (this.memoryCache) return this.memoryCache;
@@ -73,65 +58,42 @@ class StorageService {
   }
 
   /**
-   * Seed 365 days of realistic data usage
+   * Seed baseline 365 days of realistic total data usage
    */
-  private async seed365DaysHistory(): Promise<void> {
+  private async seedBaselineHistory(): Promise<void> {
     const records: Record<string, DailySnapshot> = {};
     const now = new Date();
 
-    // Generate day by day for past 365 days
     for (let i = 364; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateKey = toDateKey(date);
 
-      // Day-of-week variation (weekends have higher video usage)
+      // Variation: weekends higher Wi-Fi
       const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-      const dayFactor = isWeekend ? 1.35 : 0.95;
+      const factor = isWeekend ? 1.3 : 0.95;
+      const variance = 0.7 + Math.random() * 0.6;
 
-      // Add a slight growth trend over the year to reflect real world usage
-      const trendFactor = 0.8 + ((365 - i) / 365) * 0.4; // 80% to 120%
+      // Realistic daily values: ~1.2 GB to ~3.5 GB Wi-Fi, ~300 MB to ~800 MB Mobile
+      const wifiMB = (1800 + Math.random() * 1200) * factor * variance;
+      const mobileMB = (400 + Math.random() * 350) * variance;
 
-      let dayWifiTotal = 0;
-      let dayMobileTotal = 0;
-      const appRecords: DailySnapshot['appRecords'] = {};
+      const rxRatio = 0.85 + Math.random() * 0.08;
 
-      for (const app of CATALOG_APPS) {
-        // Random daily variance: 0.6 to 1.4
-        const variance = 0.6 + Math.random() * 0.8;
-        
-        // Base MB unit (approx 10 MB per weight unit)
-        const baseWifiMB = app.wifiWeight * 12 * dayFactor * trendFactor * variance;
-        const baseMobileMB = app.mobileWeight * 4 * dayFactor * trendFactor * variance;
+      const wifiRx = Math.round(wifiMB * rxRatio * 1024 * 1024);
+      const wifiTx = Math.round(wifiMB * (1 - rxRatio) * 1024 * 1024);
 
-        // Rx (Download) is typically 80-90%, Tx (Upload) is 10-20%
-        const rxRatio = 0.82 + Math.random() * 0.12;
-
-        const wifiTotalMB = Math.max(0.5, baseWifiMB);
-        const mobileTotalMB = Math.max(0.2, baseMobileMB);
-
-        const wifiRx = Math.round(wifiTotalMB * rxRatio * 1024 * 1024);
-        const wifiTx = Math.round(wifiTotalMB * (1 - rxRatio) * 1024 * 1024);
-
-        const mobileRx = Math.round(mobileTotalMB * rxRatio * 1024 * 1024);
-        const mobileTx = Math.round(mobileTotalMB * (1 - rxRatio) * 1024 * 1024);
-
-        appRecords[app.package] = {
-          wifiRx,
-          wifiTx,
-          mobileRx,
-          mobileTx,
-        };
-
-        dayWifiTotal += wifiRx + wifiTx;
-        dayMobileTotal += mobileRx + mobileTx;
-      }
+      const mobileRx = Math.round(mobileMB * rxRatio * 1024 * 1024);
+      const mobileTx = Math.round(mobileMB * (1 - rxRatio) * 1024 * 1024);
 
       records[dateKey] = {
         date: dateKey,
-        wifiTotal: dayWifiTotal,
-        mobileTotal: dayMobileTotal,
-        appRecords,
+        wifiRx,
+        wifiTx,
+        wifiTotal: wifiRx + wifiTx,
+        mobileRx,
+        mobileTx,
+        mobileTotal: mobileRx + mobileTx,
       };
     }
 
@@ -140,7 +102,7 @@ class StorageService {
   }
 
   /**
-   * Automatically prune records older than 365 days
+   * Prune records older than 365 days
    */
   async pruneOlderThanOneYear(): Promise<void> {
     const all = await this.loadAllRecords();
@@ -162,26 +124,23 @@ class StorageService {
   }
 
   /**
-   * Query usage for a specific start and end date
+   * Query total usage for a specific start and end date
    */
-  async getUsageForRange(startDate: Date, endDate: Date): Promise<{
-    apps: AppUsageItem[];
-    summary: UsageSummary;
-  }> {
-    const all = await this.loadAllRecords();
-    const startKey = toDateKey(startDate);
-    const endKey = toDateKey(endDate);
+  async getUsageForRange(startDate: Date, endDate: Date): Promise<UsageSummary> {
+    const resetTs = await this.getResetTimestamp();
 
-    // Aggregate values
-    const appAggregates: Record<
-      string,
-      {
-        wifiRx: number;
-        wifiTx: number;
-        mobileRx: number;
-        mobileTx: number;
-      }
-    > = {};
+    // If query window is before the reset timestamp, return 0
+    if (resetTs > 0 && endDate.getTime() < resetTs) {
+      const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)));
+      return this.emptySummary(diffDays);
+    }
+
+    // Effective start date clamped to reset timestamp
+    const effectiveStart = resetTs > 0 && startDate.getTime() < resetTs ? new Date(resetTs) : startDate;
+
+    const all = await this.loadAllRecords();
+    const startKey = toDateKey(effectiveStart);
+    const endKey = toDateKey(endDate);
 
     let totalWifiRx = 0;
     let totalWifiTx = 0;
@@ -192,20 +151,10 @@ class StorageService {
     for (const [dateKey, snapshot] of Object.entries(all)) {
       if (dateKey >= startKey && dateKey <= endKey) {
         matchedDays++;
-        for (const [pkg, usage] of Object.entries(snapshot.appRecords)) {
-          if (!appAggregates[pkg]) {
-            appAggregates[pkg] = { wifiRx: 0, wifiTx: 0, mobileRx: 0, mobileTx: 0 };
-          }
-          appAggregates[pkg].wifiRx += usage.wifiRx;
-          appAggregates[pkg].wifiTx += usage.wifiTx;
-          appAggregates[pkg].mobileRx += usage.mobileRx;
-          appAggregates[pkg].mobileTx += usage.mobileTx;
-
-          totalWifiRx += usage.wifiRx;
-          totalWifiTx += usage.wifiTx;
-          totalMobileRx += usage.mobileRx;
-          totalMobileTx += usage.mobileTx;
-        }
+        totalWifiRx += snapshot.wifiRx || 0;
+        totalWifiTx += snapshot.wifiTx || 0;
+        totalMobileRx += snapshot.mobileRx || 0;
+        totalMobileTx += snapshot.mobileTx || 0;
       }
     }
 
@@ -214,41 +163,7 @@ class StorageService {
     const totalMobile = totalMobileRx + totalMobileTx;
     const grandTotal = totalWifi + totalMobile;
 
-    // Map to AppUsageItem list
-    const appList: AppUsageItem[] = Object.keys(appAggregates).map((pkg) => {
-      const agg = appAggregates[pkg];
-      const catalogInfo = CATALOG_APPS.find((c) => c.package === pkg);
-      const appName = catalogInfo ? catalogInfo.name : pkg.split('.').pop() || pkg;
-      const category = (catalogInfo?.category || 'other') as AppUsageItem['category'];
-      const appType: AppItemType = catalogInfo?.appType || (pkg === 'app.removed.historical' ? 'removed' : (pkg.startsWith('android') ? 'system' : 'installed'));
-
-      const wifiTotal = agg.wifiRx + agg.wifiTx;
-      const mobileTotal = agg.mobileRx + agg.mobileTx;
-      const combinedTotal = wifiTotal + mobileTotal;
-
-      let iconColor = getAppColor(appName);
-      if (appType === 'system') iconColor = '#64748B';
-      if (appType === 'removed') iconColor = '#EF4444';
-
-      return {
-        id: pkg,
-        packageName: pkg,
-        appName,
-        appType,
-        wifiRxBytes: agg.wifiRx,
-        wifiTxBytes: agg.wifiTx,
-        wifiTotalBytes: wifiTotal,
-        mobileRxBytes: agg.mobileRx,
-        mobileTxBytes: agg.mobileTx,
-        mobileTotalBytes: mobileTotal,
-        totalBytes: combinedTotal,
-        iconColor,
-        category,
-        isSystemApp: appType === 'system',
-      };
-    });
-
-    const summary: UsageSummary = {
+    return {
       totalWifiBytes: totalWifi,
       totalWifiRxBytes: totalWifiRx,
       totalWifiTxBytes: totalWifiTx,
@@ -259,30 +174,49 @@ class StorageService {
       daysInRange: effectiveDays,
       dailyAvgWifiBytes: Math.round(totalWifi / effectiveDays),
       dailyAvgMobileBytes: Math.round(totalMobile / effectiveDays),
-      appsCount: appList.length,
     };
-
-    return { apps: appList, summary };
   }
 
   /**
-   * Save a single day's live snapshot
-   */
-  async saveDaySnapshot(dateKey: string, snapshot: DailySnapshot): Promise<void> {
-    const all = await this.loadAllRecords();
-    all[dateKey] = snapshot;
-    this.memoryCache = all;
-    await AsyncStorage.setItem(STORAGE_KEY_DAILY_RECORDS, JSON.stringify(all));
-  }
-
-  /**
-   * Reset / re-seed data (for testing or user reset)
+   * Reset data usage records to 0 bytes and record reset timestamp
    */
   async resetData(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEY_INITIALIZED);
-    await AsyncStorage.removeItem(STORAGE_KEY_DAILY_RECORDS);
-    this.memoryCache = null;
-    await this.initialize();
+    const now = Date.now();
+    this.resetTimestamp = now;
+    await AsyncStorage.setItem(STORAGE_KEY_RESET_TIMESTAMP, String(now));
+    await AsyncStorage.setItem(STORAGE_KEY_INITIALIZED, 'true');
+
+    // Create a fresh 0-byte record for today
+    const todayKey = toDateKey(new Date());
+    const emptyRecords: Record<string, DailySnapshot> = {
+      [todayKey]: {
+        date: todayKey,
+        wifiRx: 0,
+        wifiTx: 0,
+        wifiTotal: 0,
+        mobileRx: 0,
+        mobileTx: 0,
+        mobileTotal: 0,
+      },
+    };
+
+    this.memoryCache = emptyRecords;
+    await AsyncStorage.setItem(STORAGE_KEY_DAILY_RECORDS, JSON.stringify(emptyRecords));
+  }
+
+  private emptySummary(days: number): UsageSummary {
+    return {
+      totalWifiBytes: 0,
+      totalWifiRxBytes: 0,
+      totalWifiTxBytes: 0,
+      totalMobileBytes: 0,
+      totalMobileRxBytes: 0,
+      totalMobileTxBytes: 0,
+      grandTotalBytes: 0,
+      daysInRange: Math.max(1, days),
+      dailyAvgWifiBytes: 0,
+      dailyAvgMobileBytes: 0,
+    };
   }
 }
 

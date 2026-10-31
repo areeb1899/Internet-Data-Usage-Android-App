@@ -1,10 +1,8 @@
-import { AppUsageItem, UsageSummary } from '../types/dataUsage';
+import { UsageSummary } from '../types/dataUsage';
 import { NetworkStats, NativeAppStats } from '../native/NetworkStats';
 import { storageService } from './storageService';
-import { getAppColor } from '../utils/formatters';
 
 export interface DataUsageResponse {
-  apps: AppUsageItem[];
   summary: UsageSummary;
   isNative: boolean;
   permissionGranted: boolean;
@@ -23,22 +21,46 @@ class DataUsageService {
       permissionGranted = await NetworkStats.checkPermission();
     }
 
+    const resetTs = await storageService.getResetTimestamp();
+
+    // If query window is before the reset timestamp, return 0
+    if (resetTs > 0 && endDate.getTime() < resetTs) {
+      const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)));
+      return {
+        summary: {
+          totalWifiBytes: 0,
+          totalWifiRxBytes: 0,
+          totalWifiTxBytes: 0,
+          totalMobileBytes: 0,
+          totalMobileRxBytes: 0,
+          totalMobileTxBytes: 0,
+          grandTotalBytes: 0,
+          daysInRange: diffDays,
+          dailyAvgWifiBytes: 0,
+          dailyAvgMobileBytes: 0,
+        },
+        isNative,
+        permissionGranted,
+      };
+    }
+
+    const effectiveStartMs = resetTs > 0 ? Math.max(startDate.getTime(), resetTs) : startDate.getTime();
+
     // If native Android module is present and permission is granted, query live device stats
     if (isNative && permissionGranted) {
       try {
-        const nativeStats = await NetworkStats.queryUsage(startDate.getTime(), endDate.getTime());
-        if (nativeStats && nativeStats.length > 0) {
-          return this.processNativeStats(nativeStats, startDate, endDate);
+        const nativeStats = await NetworkStats.queryUsage(effectiveStartMs, endDate.getTime());
+        if (nativeStats) {
+          return this.processNativeStats(nativeStats, new Date(effectiveStartMs), endDate);
         }
       } catch (err) {
         console.warn('Failed to query native stats, falling back to local history store:', err);
       }
     }
 
-    // Fallback: Query local 1-year persistent store
-    const { apps, summary } = await storageService.getUsageForRange(startDate, endDate);
+    // Fallback: Query local persistent store
+    const summary = await storageService.getUsageForRange(startDate, endDate);
     return {
-      apps,
       summary,
       isNative,
       permissionGranted: isNative ? permissionGranted : true,
@@ -55,35 +77,12 @@ class DataUsageService {
     let totalMobileRx = 0;
     let totalMobileTx = 0;
 
-    const apps: AppUsageItem[] = stats.map((item) => {
-      const wifiTotal = item.wifiRxBytes + item.wifiTxBytes;
-      const mobileTotal = item.mobileRxBytes + item.mobileTxBytes;
-      const total = wifiTotal + mobileTotal;
-
-      totalWifiRx += item.wifiRxBytes;
-      totalWifiTx += item.wifiTxBytes;
-      totalMobileRx += item.mobileRxBytes;
-      totalMobileTx += item.mobileTxBytes;
-
-      const appType = item.appType || (item.packageName === 'app.removed.historical' ? 'removed' : (item.packageName.startsWith('android') ? 'system' : 'installed'));
-
-      return {
-        id: item.packageName,
-        packageName: item.packageName,
-        appName: item.appName || item.packageName,
-        appType,
-        wifiRxBytes: item.wifiRxBytes,
-        wifiTxBytes: item.wifiTxBytes,
-        wifiTotalBytes: wifiTotal,
-        mobileRxBytes: item.mobileRxBytes,
-        mobileTxBytes: item.mobileTxBytes,
-        mobileTotalBytes: mobileTotal,
-        totalBytes: total,
-        iconColor: appType === 'removed' ? '#EF4444' : (appType === 'system' ? '#64748B' : getAppColor(item.appName || item.packageName)),
-        category: appType === 'system' ? 'system' : 'other',
-        isSystemApp: appType === 'system',
-      };
-    });
+    for (const item of stats) {
+      totalWifiRx += item.wifiRxBytes || 0;
+      totalWifiTx += item.wifiTxBytes || 0;
+      totalMobileRx += item.mobileRxBytes || 0;
+      totalMobileTx += item.mobileTxBytes || 0;
+    }
 
     const diffDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)));
     const totalWifi = totalWifiRx + totalWifiTx;
@@ -101,11 +100,9 @@ class DataUsageService {
       daysInRange: diffDays,
       dailyAvgWifiBytes: Math.round(totalWifi / diffDays),
       dailyAvgMobileBytes: Math.round(totalMobile / diffDays),
-      appsCount: apps.length,
     };
 
     return {
-      apps,
       summary,
       isNative: true,
       permissionGranted: true,
